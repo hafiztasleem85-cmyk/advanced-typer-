@@ -53,6 +53,15 @@ if currentPluginPath:sub(1, 1) == "@" then
     currentPluginPath = currentPluginPath:sub(2)
 end
 
+local activeSpeechRecognizer = nil
+
+local function safeStop(speechRecognizer)
+    if speechRecognizer ~= nil then
+        speechRecognizer.stopListening()
+        speechRecognizer.destroy()
+    end
+end
+
 local function isUpdateAvailable(current, online)
     local function splitVersion(ver)
         local parts = {}
@@ -135,6 +144,9 @@ local function checkUpdate()
                         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY) 
                     else 
                         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
+                    end
+                    if activeSpeechRecognizer then
+                        safeStop(activeSpeechRecognizer)
                     end
                     dialog.show()
                     dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
@@ -954,13 +966,6 @@ local function showSettings()
     titleMic.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
 end
 
-local function safeStop(speechRecognizer)
-    if speechRecognizer ~= nil then
-        speechRecognizer.stopListening()
-        speechRecognizer.destroy()
-    end
-end
-
 local function tryMyMemory(encodedText, targetLangCode, speechRecognizer)
     local urlMyMemory = "https://api.mymemory.translated.net/get?q=" .. encodedText .. "&langpair=autodetect|" .. targetLangCode
     Http.get(urlMyMemory, nil, "utf-8", nil, function(code, responseText)
@@ -1039,6 +1044,7 @@ local function startListening(node)
     recognizerIntent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, Long(10000))
 
     local speechRecognizer = SpeechRecognizer.createSpeechRecognizer(service)
+    activeSpeechRecognizer = speechRecognizer
 
     local speechListener = RecognitionListener{
         onResults = function(results)
