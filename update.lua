@@ -42,6 +42,7 @@ import "android.os.Handler"
 import "android.os.Looper"
 import "java.lang.Runnable"
 import "android.os.Build"
+import "android.content.pm.PackageManager"
 
 local currentVersion = "1.0"
 local versionUrl = "https://raw.githubusercontent.com/hafiztasleem85-cmyk/advanced-typer-/refs/heads/main/virgin.txt"
@@ -100,10 +101,10 @@ local function checkUpdate()
                         Http.get(updateUrl .. "?t=" .. timestamp, nil, "utf-8", nil, function(code2, res2)
                             if code2 == 200 and res2 then
                                 local tempPath = currentPluginPath .. ".temp_update"
-                                local f = io.open(tempPath, "w")
-                                if f then
-                                    f:write(res2)
-                                    f:close()
+                                local openStatus, f = pcall(io.open, tempPath, "w")
+                                if openStatus and f then
+                                    pcall(function() f:write(res2) end)
+                                    pcall(function() f:close() end)
                                     local success = false
                                     local fileExists = io.open(currentPluginPath, "r")
                                     if fileExists then
@@ -134,7 +135,7 @@ local function checkUpdate()
                                     service.speak("अपडेट महफूज़ करने में दिक्कत आई")
                                 end
                             else
-                                service.speak("अपडेट डाउनलोड नहीं हो सका")
+                                service.speak("अपडेट डाउनलोड नहीं আসতে सका")
                             end
                         end)
                     end)
@@ -260,12 +261,12 @@ local baseLanguages = {
 }
 
 local function readConfig()
-    local file = io.open(configPath, "r")
-    if file then
+    local status, file = pcall(io.open, configPath, "r")
+    if status and file then
         local content = file:read("*a")
-        file:close()
-        local status, res = pcall(json.decode, content)
-        if status and res and type(res) == "table" then
+        pcall(function() file:close() end)
+        local parseStatus, res = pcall(json.decode, content)
+        if parseStatus and res and type(res) == "table" then
             if res.details == nil then res.details = {} end
             if res.translate == nil then res.translate = false end
             if res.micIndex == nil then res.micIndex = 0 end
@@ -284,10 +285,12 @@ local function readConfig()
 end
 
 local function writeConfig(data)
-    local file = io.open(configPath, "w")
-    if file then
-        file:write(json.encode(data))
-        file:close()
+    local status, file = pcall(io.open, configPath, "w")
+    if status and file then
+        pcall(function() file:write(json.encode(data)) end)
+        pcall(function() file:close() end)
+    else
+        service.speak("File saving error. Please check storage.")
     end
 end
 
@@ -632,6 +635,11 @@ local function showSettings()
     btnAddCommand.setAllCaps(false)
     pageDetail.addView(btnAddCommand)
     
+    local btnManageCommand = Button(service)
+    btnManageCommand.setText("Manage Shortcut Command")
+    btnManageCommand.setAllCaps(false)
+    pageDetail.addView(btnManageCommand)
+    
     local btnSave = Button(service)
     btnSave.setText("Save")
     btnSave.setAllCaps(false)
@@ -668,6 +676,129 @@ local function showSettings()
             fieldsContainer.addView(ed)
             editBoxes[key] = ed
         end
+    end
+    
+    local function showManageCommandsDialog()
+        local alert = AlertDialog.Builder(service)
+        alert.setTitle("Manage Commands")
+        
+        local adapterList = {}
+        local keyMap = {}
+        for i, cmdKey in ipairs(conf.customCommands) do
+            local dispName = getCommandText(cmdKey)
+            table.insert(adapterList, dispName)
+            table.insert(keyMap, cmdKey)
+        end
+        
+        local adapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, adapterList)
+        alert.setAdapter(adapter, DialogInterface.OnClickListener{
+            onClick = function(dialog, which)
+                local selectedKey = keyMap[which + 1]
+                local selectedDispName = adapterList[which + 1]
+                
+                local optAlert = AlertDialog.Builder(service)
+                optAlert.setTitle(selectedDispName)
+                local opts = {"Rename", "Delete"}
+                local optAdapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, opts)
+                
+                optAlert.setAdapter(optAdapter, DialogInterface.OnClickListener{
+                    onClick = function(optDialog, optWhich)
+                        if optWhich == 0 then
+                            local renAlert = AlertDialog.Builder(service)
+                            renAlert.setTitle("Rename Command")
+                            local renInput = EditText(service)
+                            renInput.setText(selectedDispName)
+                            renInput.setInputType(InputType.TYPE_CLASS_TEXT + InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+                            renAlert.setView(renInput)
+                            renAlert.setPositiveButton("OK", nil)
+                            renAlert.setNegativeButton("Cancel", nil)
+                            renAlert.setOnCancelListener(DialogInterface.OnCancelListener{
+                                onCancel = function(d)
+                                    showManageCommandsDialog()
+                                end
+                            })
+                            
+                            local renDialog = renAlert.create()
+                            renDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+                            renDialog.show()
+                            
+                            renDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+                            renDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                            
+                            local renOk = renDialog.getButton(DialogInterface.BUTTON_POSITIVE)
+                            renOk.setOnClickListener(View.OnClickListener{
+                                onClick = function(view)
+                                    local newName = renInput.getText().toString()
+                                    if newName == "" then
+                                        service.speak("Please type a name")
+                                    else
+                                        local oldVal = conf.details[selectedKey]
+                                        if selectedKey ~= newName then
+                                            conf.details[newName] = oldVal
+                                            conf.details[selectedKey] = nil
+                                            for i, c in ipairs(conf.customCommands) do
+                                                if c == selectedKey then
+                                                    conf.customCommands[i] = newName
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        writeConfig(conf)
+                                        loadFields()
+                                        renDialog.dismiss()
+                                        service.speak("Renamed")
+                                        showManageCommandsDialog()
+                                    end
+                                end
+                            })
+                            
+                            local renCancel = renDialog.getButton(DialogInterface.BUTTON_NEGATIVE)
+                            renCancel.setOnClickListener(View.OnClickListener{
+                                onClick = function(view)
+                                    renDialog.dismiss()
+                                    showManageCommandsDialog()
+                                end
+                            })
+                            
+                        elseif optWhich == 1 then
+                            conf.details[selectedKey] = nil
+                            for i, c in ipairs(conf.customCommands) do
+                                if c == selectedKey then
+                                    table.remove(conf.customCommands, i)
+                                    break
+                                end
+                            end
+                            writeConfig(conf)
+                            loadFields()
+                            service.speak("Deleted")
+                            showManageCommandsDialog()
+                        end
+                    end
+                })
+                
+                optAlert.setNegativeButton("Cancel", DialogInterface.OnClickListener{
+                    onClick = function(d, w)
+                        showManageCommandsDialog()
+                    end
+                })
+                optAlert.setOnCancelListener(DialogInterface.OnCancelListener{
+                    onCancel = function(d)
+                        showManageCommandsDialog()
+                    end
+                })
+                
+                local optD = optAlert.create()
+                optD.getWindow().setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+                optD.show()
+            end
+        })
+        
+        alert.setNegativeButton("Go Back", nil)
+        
+        local listDialog = alert.create()
+        listDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+        listDialog.show()
+        listDialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
     end
     
     btnDetail.setOnClickListener(View.OnClickListener{
@@ -718,6 +849,21 @@ local function showSettings()
                     end
                 end
             })
+        end
+    })
+    
+    btnManageCommand.setOnClickListener(View.OnClickListener{
+        onClick = function(v)
+            for key, ed in pairs(editBoxes) do
+                local val = ed.getText().toString()
+                if val ~= "" then
+                    conf.details[key] = val
+                else
+                    conf.details[key] = nil
+                end
+            end
+            writeConfig(conf)
+            showManageCommandsDialog()
         end
     })
     
@@ -977,7 +1123,9 @@ local function tryMyMemory(encodedText, targetLangCode, speechRecognizer)
                     translatedText = translatedText:gsub("^%s*(.-)%s*$", "%1") .. " "
                     local currentNode = service.getEditText()
                     if currentNode then
-                        if not currentNode.isFocused() then currentNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS) end
+                        if not currentNode.isFocused() then
+                            currentNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                        end
                         service.insertText(currentNode, translatedText)
                         service.speak(translatedText)
                     end
@@ -992,6 +1140,14 @@ local function tryMyMemory(encodedText, targetLangCode, speechRecognizer)
 end
 
 local function startListening(node)
+    if Build.VERSION.SDK_INT >= 23 then
+        local permissionCheck = service.checkSelfPermission("android.permission.RECORD_AUDIO")
+        if permissionCheck ~= PackageManager.PERMISSION_GRANTED then
+            service.speak("Please check your microphone permission in settings.")
+            return
+        end
+    end
+    
     local conf = readConfig()
     if conf.micIndex < 0 or conf.micIndex >= #baseLanguages then conf.micIndex = 0 end
     if conf.targetIndex < 0 or conf.targetIndex >= #baseLanguages then conf.targetIndex = 2 end
@@ -1004,7 +1160,13 @@ local function startListening(node)
         if status and network then
             local capStatus, capabilities = pcall(function() return connectivityManager.getNetworkCapabilities(network) end)
             if capStatus and capabilities and capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) then
-                isConnected = true
+                if Build.VERSION.SDK_INT >= 23 then
+                    if capabilities.hasCapability(16) then
+                        isConnected = true
+                    end
+                else
+                    isConnected = true
+                end
             end
         else
             local networkInfo = connectivityManager.getActiveNetworkInfo()
@@ -1179,7 +1341,9 @@ local function startListening(node)
                                 translatedText = translatedText:gsub("^%s*(.-)%s*$", "%1") .. " "
                                 local currentNode = service.getEditText()
                                 if currentNode then
-                                    if not currentNode.isFocused() then currentNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS) end
+                                    if not currentNode.isFocused() then
+                                        currentNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                                    end
                                     service.insertText(currentNode, translatedText)
                                     service.speak(translatedText)
                                 end
@@ -1190,8 +1354,46 @@ local function startListening(node)
                         tryMyMemory(encodedText, targetLangCode, speechRecognizer)
                     end)
                 else
+                    local existingText = ""
+                    if node.getText() then
+                        existingText = tostring(node.getText())
+                    end
+                    
+                    pcall(function()
+                        local hint = node.getHintText()
+                        if hint ~= nil and existingText == tostring(hint) then
+                            existingText = ""
+                        end
+                    end)
+                    
+                    local trimmedExisting = existingText:gsub("[ \t]+$", "")
+                    local shouldCapitalize = false
+                    local selStart = -1
+                    pcall(function() selStart = node.getTextSelectionStart() end)
+                    
+                    if trimmedExisting == "" or trimmedExisting:sub(-1) == "." or trimmedExisting:sub(-1) == "\n" or selStart <= 0 then
+                        shouldCapitalize = true
+                    end
+                    
+                    recognizedText = recognizedText:match("^%s*(.-)$") or recognizedText
+                    
+                    if string.len(recognizedText) > 0 then
+                        local firstByte = string.byte(recognizedText, 1)
+                        if firstByte and ((firstByte >= 65 and firstByte <= 90) or (firstByte >= 97 and firstByte <= 122)) then
+                            local firstChar = string.sub(recognizedText, 1, 1)
+                            local rest = string.sub(recognizedText, 2)
+                            if shouldCapitalize then
+                                recognizedText = string.upper(firstChar) .. rest
+                            else
+                                recognizedText = string.lower(firstChar) .. rest
+                            end
+                        end
+                    end
+                    
                     recognizedText = recognizedText .. " "
-                    if not node.isFocused() then node.performAction(AccessibilityNodeInfo.ACTION_FOCUS) end
+                    if not node.isFocused() then
+                        node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                    end
                     service.insertText(node, recognizedText)
                     service.speak(recognizedText)
                     safeStop(speechRecognizer)
