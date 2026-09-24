@@ -98,12 +98,7 @@ local function checkUpdate()
                             local alert = AlertDialog.Builder(service)
                             alert.setTitle("Update Error")
                             alert.setMessage(errorText .. "\n\nIf the issue persists, please contact the developer for further assistance.")
-                            alert.setNegativeButton("Contact Developer", function()
-                                local intent = Intent(Intent.ACTION_VIEW)
-                                intent.setData(Uri.parse("https://wa.me/919795801895"))
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                service.startActivity(intent)
-                            end)
+                            alert.setNegativeButton("Contact Developer", nil)
                             alert.setPositiveButton("OK", nil)
                             local d = alert.create()
                             if Build.VERSION.SDK_INT >= 22 then 
@@ -112,8 +107,26 @@ local function checkUpdate()
                                 d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
                             end
                             d.show()
-                            if d.getButton(DialogInterface.BUTTON_NEGATIVE) then d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false) end
-                            if d.getButton(DialogInterface.BUTTON_POSITIVE) then d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false) end
+                            if d.getButton(DialogInterface.BUTTON_NEGATIVE) then 
+                                d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+                                d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        d.dismiss()
+                                        local intent = Intent(Intent.ACTION_VIEW)
+                                        intent.setData(Uri.parse("https://wa.me/919795801895"))
+                                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        service.startActivity(intent)
+                                    end
+                                })
+                            end
+                            if d.getButton(DialogInterface.BUTTON_POSITIVE) then 
+                                d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+                                d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        d.dismiss()
+                                    end
+                                })
+                            end
                         end
                     }))
                 end
@@ -124,13 +137,7 @@ local function checkUpdate()
                             local alert = AlertDialog.Builder(service)
                             alert.setTitle("Update Successful")
                             alert.setMessage("Plugin successfully updated to " .. newVer)
-                            alert.setNegativeButton("Restart Plugin", function()
-                                Handler(Looper.getMainLooper()).postDelayed(Runnable({
-                                    run = function() 
-                                        pcall(function() dofile(currentPluginPath) end) 
-                                    end
-                                }), 1000)
-                            end)
+                            alert.setNegativeButton("Restart Plugin", nil)
                             alert.setPositiveButton("Go Back", nil)
                             local d = alert.create()
                             if Build.VERSION.SDK_INT >= 22 then 
@@ -139,8 +146,27 @@ local function checkUpdate()
                                 d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
                             end
                             d.show()
-                            if d.getButton(DialogInterface.BUTTON_NEGATIVE) then d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false) end
-                            if d.getButton(DialogInterface.BUTTON_POSITIVE) then d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false) end
+                            if d.getButton(DialogInterface.BUTTON_NEGATIVE) then 
+                                d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+                                d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        d.dismiss()
+                                        Handler(Looper.getMainLooper()).postDelayed(Runnable({
+                                            run = function() 
+                                                pcall(function() dofile(currentPluginPath) end) 
+                                            end
+                                        }), 1000)
+                                    end
+                                })
+                            end
+                            if d.getButton(DialogInterface.BUTTON_POSITIVE) then 
+                                d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+                                d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        d.dismiss()
+                                    end
+                                })
+                            end
                         end
                     }))
                 end
@@ -155,42 +181,7 @@ local function checkUpdate()
                             local builder = AlertDialog.Builder(service)
                             builder.setTitle("Update Available")
                             builder.setMessage(updateMessage)
-                            builder.setNegativeButton("Update Now", function()
-                                if globalMainDialog ~= nil then
-                                    globalMainDialog.dismiss()
-                                end
-                                service.speak("Updating please wait")
-                                Http.get(updateUrl .. "?t=" .. timestamp, nil, "utf-8", nil, function(code2, res2)
-                                    if code2 == 200 and res2 then
-                                        local tempPath = currentPluginPath .. ".temp_update"
-                                        local tf = io.open(tempPath, "w")
-                                        if tf then
-                                            tf:write(res2)
-                                            tf:close()
-                                            
-                                            os.remove(currentPluginPath)
-                                            local renSuccess, renErr = os.rename(tempPath, currentPluginPath)
-                                            if renSuccess then
-                                                showUpdateSuccess(onlineVersion)
-                                            else
-                                                local of = io.open(currentPluginPath, "w")
-                                                if of then
-                                                    of:write(res2)
-                                                    of:close()
-                                                    os.remove(tempPath)
-                                                    showUpdateSuccess(onlineVersion)
-                                                else
-                                                    showUpdateError("Failed to overwrite plugin file.")
-                                                end
-                                            end
-                                        else
-                                            showUpdateError("Failed to create temporary file.")
-                                        end
-                                    else
-                                        showUpdateError("Failed to download the update.")
-                                    end
-                                end)
-                            end)
+                            builder.setNegativeButton("Update Now", nil)
                             builder.setPositiveButton("Maybe Later", nil)
                             local dialog = builder.create()
                             if Build.VERSION.SDK_INT >= 22 then 
@@ -202,8 +193,56 @@ local function checkUpdate()
                                 safeStop(activeSpeechRecognizer)
                             end
                             dialog.show()
-                            if dialog.getButton(DialogInterface.BUTTON_NEGATIVE) then dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false) end
-                            if dialog.getButton(DialogInterface.BUTTON_POSITIVE) then dialog.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false) end
+                            if dialog.getButton(DialogInterface.BUTTON_NEGATIVE) then 
+                                dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+                                dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        dialog.dismiss()
+                                        if globalMainDialog ~= nil then
+                                            globalMainDialog.dismiss()
+                                        end
+                                        service.speak("Updating please wait")
+                                        Http.get(updateUrl .. "?t=" .. timestamp, nil, "utf-8", nil, function(code2, res2)
+                                            if code2 == 200 and res2 then
+                                                local tempPath = currentPluginPath .. ".temp_update"
+                                                local tf = io.open(tempPath, "w")
+                                                if tf then
+                                                    tf:write(res2)
+                                                    tf:close()
+                                                    
+                                                    os.remove(currentPluginPath)
+                                                    local renSuccess, renErr = os.rename(tempPath, currentPluginPath)
+                                                    if renSuccess then
+                                                        showUpdateSuccess(onlineVersion)
+                                                    else
+                                                        local of = io.open(currentPluginPath, "w")
+                                                        if of then
+                                                            of:write(res2)
+                                                            of:close()
+                                                            os.remove(tempPath)
+                                                            showUpdateSuccess(onlineVersion)
+                                                        else
+                                                            showUpdateError("Failed to overwrite plugin file.")
+                                                        end
+                                                    end
+                                                else
+                                                    showUpdateError("Failed to create temporary file.")
+                                                end
+                                            else
+                                                showUpdateError("Failed to download the update.")
+                                            end
+                                        end)
+                                    end
+                                })
+                            end
+                            if dialog.getButton(DialogInterface.BUTTON_POSITIVE) then 
+                                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+                                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+                                    onClick = function(v)
+                                        dialog.dismiss()
+                                    end
+                                })
+                            end
                         end
                     }))
                 end)
@@ -384,12 +423,14 @@ local function playAudioTutorial()
             d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
         end
         d.show()
-        d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
-        d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
-            onClick = function(view)
-                d.dismiss()
-            end
-        })
+        if d.getButton(DialogInterface.BUTTON_POSITIVE) then
+            d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+            d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+                onClick = function(view)
+                    d.dismiss()
+                end
+            })
+        end
     end
 end
 
@@ -724,22 +765,24 @@ local function showSettings()
                 d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
             end
             d.show()
-            d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
-            d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
-            
-            d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
-                onClick = function(view)
-                    d.dismiss()
-                    globalMainDialog.dismiss()
-                    playAudioTutorial()
-                end
-            })
-            
-            d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
-                onClick = function(view)
-                    d.dismiss()
-                end
-            })
+            if d.getButton(DialogInterface.BUTTON_NEGATIVE) then
+                d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+                d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
+                    onClick = function(view)
+                        d.dismiss()
+                        globalMainDialog.dismiss()
+                        playAudioTutorial()
+                    end
+                })
+            end
+            if d.getButton(DialogInterface.BUTTON_POSITIVE) then
+                d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+                d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+                    onClick = function(view)
+                        d.dismiss()
+                    end
+                })
+            end
         end
     })
     
@@ -854,40 +897,44 @@ local function showSettings()
                             renDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
                             renDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                             
-                            local renOk = renDialog.getButton(DialogInterface.BUTTON_POSITIVE)
-                            renOk.setOnClickListener(View.OnClickListener{
-                                onClick = function(view)
-                                    local newName = renInput.getText().toString()
-                                    if newName == "" then
-                                        service.speak("Please type a name")
-                                    else
-                                        local oldVal = conf.details[selectedKey]
-                                        if selectedKey ~= newName then
-                                            conf.details[newName] = oldVal
-                                            conf.details[selectedKey] = nil
-                                            for i, c in ipairs(conf.customCommands) do
-                                                if c == selectedKey then
-                                                    conf.customCommands[i] = newName
-                                                    break
+                            if renDialog.getButton(DialogInterface.BUTTON_POSITIVE) then
+                                local renOk = renDialog.getButton(DialogInterface.BUTTON_POSITIVE)
+                                renOk.setOnClickListener(View.OnClickListener{
+                                    onClick = function(view)
+                                        local newName = renInput.getText().toString()
+                                        if newName == "" then
+                                            service.speak("Please type a name")
+                                        else
+                                            local oldVal = conf.details[selectedKey]
+                                            if selectedKey ~= newName then
+                                                conf.details[newName] = oldVal
+                                                conf.details[selectedKey] = nil
+                                                for i, c in ipairs(conf.customCommands) do
+                                                    if c == selectedKey then
+                                                        conf.customCommands[i] = newName
+                                                        break
+                                                    end
                                                 end
                                             end
+                                            writeConfig(conf)
+                                            loadFields()
+                                            renDialog.dismiss()
+                                            service.speak("Renamed")
+                                            showManageCommandsDialog()
                                         end
-                                        writeConfig(conf)
-                                        loadFields()
+                                    end
+                                })
+                            end
+                            
+                            if renDialog.getButton(DialogInterface.BUTTON_NEGATIVE) then
+                                local renCancel = renDialog.getButton(DialogInterface.BUTTON_NEGATIVE)
+                                renCancel.setOnClickListener(View.OnClickListener{
+                                    onClick = function(view)
                                         renDialog.dismiss()
-                                        service.speak("Renamed")
                                         showManageCommandsDialog()
                                     end
-                                end
-                            })
-                            
-                            local renCancel = renDialog.getButton(DialogInterface.BUTTON_NEGATIVE)
-                            renCancel.setOnClickListener(View.OnClickListener{
-                                onClick = function(view)
-                                    renDialog.dismiss()
-                                    showManageCommandsDialog()
-                                end
-                            })
+                                })
+                            end
                             
                         elseif optWhich == 1 then
                             conf.details[selectedKey] = nil
@@ -927,7 +974,9 @@ local function showSettings()
         local listDialog = alert.create()
         listDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
         listDialog.show()
-        listDialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+        if listDialog.getButton(DialogInterface.BUTTON_NEGATIVE) then
+            listDialog.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+        end
     end
     
     btnDetail.setOnClickListener(View.OnClickListener{
@@ -963,21 +1012,23 @@ local function showSettings()
             cmdDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
             cmdDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             
-            local okBtn = cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE)
-            okBtn.setOnClickListener(View.OnClickListener{
-                onClick = function(view)
-                    local newCmd = input.getText().toString()
-                    if newCmd == "" then
-                        service.speak("Please type command first")
-                    else
-                        table.insert(conf.customCommands, newCmd)
-                        conf.details[newCmd] = ""
-                        writeConfig(conf)
-                        loadFields()
-                        cmdDialog.dismiss()
+            if cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE) then
+                local okBtn = cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE)
+                okBtn.setOnClickListener(View.OnClickListener{
+                    onClick = function(view)
+                        local newCmd = input.getText().toString()
+                        if newCmd == "" then
+                            service.speak("Please type command first")
+                        else
+                            table.insert(conf.customCommands, newCmd)
+                            conf.details[newCmd] = ""
+                            writeConfig(conf)
+                            loadFields()
+                            cmdDialog.dismiss()
+                        end
                     end
-                end
-            })
+                })
+            end
         end
     })
     
@@ -1088,25 +1139,27 @@ local function showSettings()
         cmdDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
         cmdDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         
-        local okBtn = cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE)
-        okBtn.setOnClickListener(View.OnClickListener{
-            onClick = function(view)
-                local w = inputWrong.getText().toString():match("^%s*(.-)%s*$") or ""
-                local r = inputRight.getText().toString():match("^%s*(.-)%s*$") or ""
-                if w == "" or r == "" then
-                    service.speak("Please type both words")
-                else
-                    if isEdit and w ~= oldW then
-                        conf.dictionary[oldW] = nil
+        if cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE) then
+            local okBtn = cmdDialog.getButton(DialogInterface.BUTTON_POSITIVE)
+            okBtn.setOnClickListener(View.OnClickListener{
+                onClick = function(view)
+                    local w = inputWrong.getText().toString():match("^%s*(.-)%s*$") or ""
+                    local r = inputRight.getText().toString():match("^%s*(.-)%s*$") or ""
+                    if w == "" or r == "" then
+                        service.speak("Please type both words")
+                    else
+                        if isEdit and w ~= oldW then
+                            conf.dictionary[oldW] = nil
+                        end
+                        conf.dictionary[w] = r
+                        writeConfig(conf)
+                        loadDictList()
+                        cmdDialog.dismiss()
+                        service.speak("Saved")
                     end
-                    conf.dictionary[w] = r
-                    writeConfig(conf)
-                    loadDictList()
-                    cmdDialog.dismiss()
-                    service.speak("Saved")
                 end
-            end
-        })
+            })
+        end
     end
     
     loadDictList = function()
@@ -1608,26 +1661,28 @@ if confMain.hideWelcome == false then
         d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT) 
     end
     d.show()
-    d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
-    d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
-    
-    d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
-        onClick = function(v)
-            if cb.isChecked() then
-                confMain.hideWelcome = true
-                writeConfig(confMain)
+    if d.getButton(DialogInterface.BUTTON_NEGATIVE) then
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).setAllCaps(false)
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
+            onClick = function(v)
+                d.dismiss()
+                playAudioTutorial()
             end
-            d.dismiss()
-            executePluginAction()
-        end
-    })
-    
-    d.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(View.OnClickListener{
-        onClick = function(v)
-            d.dismiss()
-            playAudioTutorial()
-        end
-    })
+        })
+    end
+    if d.getButton(DialogInterface.BUTTON_POSITIVE) then
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setAllCaps(false)
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(View.OnClickListener{
+            onClick = function(v)
+                if cb.isChecked() then
+                    confMain.hideWelcome = true
+                    writeConfig(confMain)
+                end
+                d.dismiss()
+                executePluginAction()
+            end
+        })
+    end
 else
     executePluginAction()
 end
